@@ -24,58 +24,98 @@ from core import NexusAgent, Config
 # No module-level Window calls to prevent Android startup crashes
 
 class ChatMessage(BoxLayout):
-    """Premium chat message widget."""
+    """Premium modern chat message with dynamic bubble sizing."""
     def __init__(self, text, is_user=True, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.padding = [15, 10]
-        self.spacing = 5
+        self.spacing = 2
         self.size_hint_y = None
         self.bind(minimum_height=self.setter('height'))
         
-        # Background color based on sender (Glassmorphism look)
-        self.canvas.before.clear()
-        with self.canvas.before:
-            if is_user:
-                Color(0.2, 0.4, 0.8, 0.8) # Premium Neon Blue
-            else:
-                Color(0.15, 0.15, 0.18, 0.8) # Dark Glass
-            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[15])
-            
-        self.bind(pos=self._update_rect, size=self._update_rect)
+        # Calculate alignment
+        self.halign = 'right' if is_user else 'left'
+        self.padding = [50, 5, 10, 5] if is_user else [10, 5, 50, 5]
         
-        label = Label(
-            text=text,
-            size_hint_y=None,
-            halign='left',
-            valign='middle',
+        # Label for Sender Name
+        sender_name = "YOU" if is_user else "NEXUS"
+        name_label = Label(
+            text=f"[b]{sender_name}[/b]",
             markup=True,
-            color=(1, 1, 1, 1) if is_user else (0.9, 0.9, 0.9, 1),
-            font_size='15sp'
+            size_hint=(1, None),
+            height=20,
+            halign=self.halign,
+            color=(0.3, 0.6, 1, 1) if is_user else (0.7, 0.7, 0.8, 1),
+            font_size='11sp'
         )
-        label.bind(size=label.setter('text_size'))
-        label.bind(texture_size=label.setter('height'))
-        label.height = label.texture_size[1] + 20
+        name_label.bind(size=name_label.setter('text_size'))
+        self.add_widget(name_label)
+
+        # Bubble Layout
+        self.bubble = BoxLayout(orientation='vertical', size_hint=(None, None), padding=[15, 12])
+        self.bubble.bind(minimum_size=self.bubble.setter('size'))
         
-        self.add_widget(label)
+        with self.bubble.canvas.before:
+            if is_user:
+                Color(0.12, 0.35, 0.7, 0.9)  # Deep Neon Blue
+            else:
+                Color(0.18, 0.18, 0.22, 0.9)  # Slate Glass
+            self.rect = RoundedRectangle(pos=self.bubble.pos, size=self.bubble.size, radius=[18, 18, (2 if is_user else 18), (18 if is_user else 2)])
+        
+        self.bubble.bind(pos=self._update_rect, size=self._update_rect)
+        
+        content = Label(
+            text=text,
+            size_hint=(None, None),
+            halign='left',
+            valign='top',
+            markup=True,
+            color=(1, 1, 1, 1),
+            font_size='14sp',
+            line_height=1.2
+        )
+        # Ensure bubble doesn't exceed screen width
+        max_width = Window.width * 0.75
+        content.bind(texture_size=lambda instance, size: self._update_bubble_width(instance, size, max_width))
+        
+        self.bubble.add_widget(content)
+        
+        # Alignment wrapper
+        wrapper = BoxLayout(size_hint_y=None, height=self.bubble.height)
+        wrapper.bind(minimum_height=self.setter('height'))
+        if is_user:
+            wrapper.add_widget(BoxLayout(size_hint_x=1)) # Spacer
+        wrapper.add_widget(self.bubble)
+        if not is_user:
+            wrapper.add_widget(BoxLayout(size_hint_x=1)) # Spacer
+            
+        self.add_widget(wrapper)
+
+    def _update_bubble_width(self, instance, size, max_width):
+        instance.width = min(size[0], max_width)
+        instance.height = size[1]
+        self.bubble.width = instance.width + 30
+        self.bubble.height = instance.height + 24
 
     def _update_rect(self, instance, value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
 
 class ChatInterface(ScrollView):
-    """Premium scrollable chat interface."""
+    """Refined chat interface with smoother interaction."""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', size_hint_y=None, padding=[10, 10], spacing=10)
+        self.effect_cls = 'DampedScrollEffect'
+        self.layout = BoxLayout(orientation='vertical', size_hint_y=None, padding=[10, 20], spacing=15)
         self.layout.bind(minimum_height=self.layout.setter('height'))
         self.add_widget(self.layout)
     
     def add_message(self, text, is_user=True):
-        """Add a message to the chat."""
         msg = ChatMessage(text, is_user)
         self.layout.add_widget(msg)
+        # Smoother auto-scroll
         Clock.schedule_once(lambda dt: self.scroll_to(msg), 0.1)
+        return msg
 
 class PremiumInput(TextInput):
     """Sleek rounded input."""

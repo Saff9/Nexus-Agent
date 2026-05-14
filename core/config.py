@@ -88,12 +88,22 @@ class Config:
         return False
     
     def save(self) -> bool:
-        """Save configuration to file."""
+        """Save configuration to file atomically to prevent corruption."""
+        import tempfile
         try:
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.config_path, 'w') as f:
-                json.dump(self._config, f, indent=2)
-            return True
+            # Use a temporary file for atomic write
+            fd, temp_path = tempfile.mkstemp(dir=str(self.config_path.parent))
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(self._config, f, indent=2)
+                # Atomic rename
+                os.replace(temp_path, str(self.config_path))
+                return True
+            except Exception as e:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                raise e
         except Exception as e:
             print(f"Error saving config: {e}")
             return False
@@ -105,9 +115,10 @@ class Config:
         return self.DEFAULTS.get(key, default)
     
     def set(self, key: str, value: Any) -> None:
-        """Set configuration value."""
+        """Set configuration value and save immediately."""
         self._config[key] = value
         self.save()
+
     
     def all(self) -> Dict[str, Any]:
         """Get all configuration values (merged with defaults)."""

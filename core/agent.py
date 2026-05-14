@@ -85,15 +85,22 @@ class NexusAgent:
         }
     
     async def run_conversation(self, user_message: str) -> str:
-        """Main conversation loop - process message and return response."""
+        """Main conversation loop with automatic fallback and context pruning."""
         self.session.add_message("user", user_message)
         
+        # Build context with pruning
         system_prompt = self._build_system_prompt()
         messages = self._build_messages(system_prompt, user_message)
         
         iteration = 0
         final_response = ""
+        last_error = None
         
+        # Primary and secondary providers
+        providers = [self.config.provider, "openrouter", "openai"]
+        if self.config.provider == "openrouter":
+            providers = ["openrouter", "openai", "anthropic"]
+            
         while iteration < self.max_iterations:
             if self._interrupt.is_set():
                 return "⚡ Interrupted by user."
@@ -101,34 +108,58 @@ class NexusAgent:
             iteration += 1
             logger.debug(f"Iteration {iteration}/{self.max_iterations}")
             
-            try:
-                provider = self.provider_registry.get_provider(self.config.provider)
-                response = await provider.chat(messages, self.tool_schemas)
-                
-                content = response.get("content", "")
-                tool_calls = response.get("tool_calls", [])
-                
-                if tool_calls:
-                    tool_results = await self._execute_tools(tool_calls)
-                    messages.append(response)
-                    for tool_result in tool_results:
-                        messages.append(tool_result)
-                    continue
-                else:
-                    final_response = content
-                    break
+            success = False
+            for provider_name in providers:
+                try:
+                    provider = self.provider_registry.get_provider(provider_name)
+                    response = await provider.chat(messages, self.tool_schemas)
                     
-            except Exception as e:
-                logger.error(f"Agent error: {e}")
-                final_response = f"Error: {str(e)}"
+                    if "Error" in response.get("content", "") and iteration == 1:
+                        # If the primary provider has an API error, try the next one
+                        continue
+                        
+                    content = response.get("content", "")
+                    tool_calls = response.get("tool_calls", [])
+                    
+                    if tool_calls:
+                        tool_results = await self._execute_tools(tool_calls)
+                        messages.append(response)
+                        for tool_result in tool_results:
+                            messages.append(tool_result)
+                        success = True
+                        break # Successfully handled tool call
+                    else:
+                        final_response = content
+                        success = True
+                        break # Successfully got final response
+                        
+                except Exception as e:
+                    last_error = str(e)
+                    logger.warning(f"Provider {provider_name} failed: {e}")
+                    continue # Try next provider
+            
+            if not success:
+                final_response = f"⚠️ All providers failed. Last error: {last_error}"
+                break
+                
+            if final_response:
                 break
         
         if final_response:
-            self.session.add_message("assistant", final_response)
-            self._learn_from_interaction(user_message, final_response)
+            # Clean up thinking tags for final UI response
+            clean_response = self._clean_thinking(final_response)
+            self.session.add_message("assistant", clean_response)
+            self._learn_from_interaction(user_message, clean_response)
             self.session_store.save(self.session)
+            return clean_response
         
-        return final_response
+        return "⚠️ I reached my maximum reasoning limit without a final answer."
+
+    def _clean_thinking(self, text: str) -> str:
+        """Remove <think> tags from final output for cleaner UI."""
+        import re
+        return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+
     
     def _build_system_prompt(self) -> str:
         """Build comprehensive system prompt from all sources."""
