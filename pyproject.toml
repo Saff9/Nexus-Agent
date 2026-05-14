@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexus-agent"
+version = "0.1.0"
+description = "The self-improving AI agent — runs everywhere"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Nexus Team" }]
+license = { text = "MIT" }
+dependencies = [
+    "httpx>=0.25.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+cli = ["prompt-toolkit>=3.0.0", "rich>=13.0.0"]
+gateway = ["python-telegram-bot>=20.0", "discord.py>=2.0.0"]
+dev = ["pytest>=7.0.0", "black", "ruff"]
+
+[project.scripts]
+nexus = "cli:main"
+
+[tool.setuptools.packages.find]
+include = ["nexus-agent*", "core*", "tools*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W"]
+ignore = ["E501"]
