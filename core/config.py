@@ -23,8 +23,13 @@ class Config:
     
     def __init__(self, config_path: Optional[Path] = None):
         if 'ANDROID_ARGUMENT' in os.environ:
-            from kivy.app import App
-            default_path = Path(App.get_running_app().user_data_dir) / "config.json"
+            try:
+                from kivy.app import App
+                app = App.get_running_app()
+                base_path = Path(app.user_data_dir) if app else Path(".")
+            except:
+                base_path = Path(".")
+            default_path = base_path / "config.json"
         else:
             default_path = Path.home() / ".nexus" / "config.json"
             
@@ -36,8 +41,12 @@ class Config:
     def data_dir(self) -> Path:
         """Get data directory, creating if needed."""
         if 'ANDROID_ARGUMENT' in os.environ:
-            from kivy.app import App
-            path = Path(App.get_running_app().user_data_dir)
+            try:
+                from kivy.app import App
+                app = App.get_running_app()
+                path = Path(app.user_data_dir) if app else Path(".")
+            except:
+                path = Path(".")
         else:
             path = Path(self.get("data_dir")).expanduser()
         path.mkdir(parents=True, exist_ok=True)
@@ -47,8 +56,12 @@ class Config:
     def workspace(self) -> Path:
         """Get workspace directory, creating if needed."""
         if 'ANDROID_ARGUMENT' in os.environ:
-            from kivy.app import App
-            path = Path(App.get_running_app().user_data_dir) / "workspace"
+            try:
+                from kivy.app import App
+                app = App.get_running_app()
+                path = (Path(app.user_data_dir) if app else Path(".")) / "workspace"
+            except:
+                path = Path("./workspace")
         else:
             path = Path(self.get("workspace")).expanduser()
         path.mkdir(parents=True, exist_ok=True)

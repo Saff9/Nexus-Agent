@@ -21,8 +21,7 @@ from kivy.core.window import Window
 
 from core import NexusAgent, Config
 
-# Set premium dark background
-Window.clearcolor = (0.05, 0.05, 0.08, 1)
+# No module-level Window calls to prevent Android startup crashes
 
 class ChatMessage(BoxLayout):
     """Premium chat message widget."""
@@ -101,6 +100,9 @@ class NexusApp(App):
     
     def build(self):
         """Build the UI."""
+        # Set premium dark background safely here
+        Window.clearcolor = (0.05, 0.05, 0.08, 1)
+        
         self.title = "⚡ Nexus Agent"
         self.icon = 'icon.png'
         
