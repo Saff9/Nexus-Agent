@@ -8,7 +8,7 @@ source.include_exts = py,png,jpg,kv,atlas,md,json
 source.exclude_exts = spec,pod,ps1,sh
 
 version = 0.1.0
-requirements = python3,kivy,httpx,pyyaml,prompt_toolkit,rich
+requirements = python3,kivy,httpx,pyyaml,prompt_toolkit,rich,openssl,sqlite3,certifi
 orientation = portrait
 osx.python_version = 3
 osx.kivy_version = 2.1.0

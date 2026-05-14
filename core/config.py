@@ -22,21 +22,35 @@ class Config:
     }
     
     def __init__(self, config_path: Optional[Path] = None):
-        self.config_path = config_path or Path.home() / ".nexus" / "config.json"
+        if 'ANDROID_ARGUMENT' in os.environ:
+            from kivy.app import App
+            default_path = Path(App.get_running_app().user_data_dir) / "config.json"
+        else:
+            default_path = Path.home() / ".nexus" / "config.json"
+            
+        self.config_path = config_path or default_path
         self._config: Dict[str, Any] = {}
         self._load()
     
     @property
     def data_dir(self) -> Path:
         """Get data directory, creating if needed."""
-        path = Path(self.get("data_dir")).expanduser()
+        if 'ANDROID_ARGUMENT' in os.environ:
+            from kivy.app import App
+            path = Path(App.get_running_app().user_data_dir)
+        else:
+            path = Path(self.get("data_dir")).expanduser()
         path.mkdir(parents=True, exist_ok=True)
         return path
     
     @property
     def workspace(self) -> Path:
         """Get workspace directory, creating if needed."""
-        path = Path(self.get("workspace")).expanduser()
+        if 'ANDROID_ARGUMENT' in os.environ:
+            from kivy.app import App
+            path = Path(App.get_running_app().user_data_dir) / "workspace"
+        else:
+            path = Path(self.get("workspace")).expanduser()
         path.mkdir(parents=True, exist_ok=True)
         return path
     
